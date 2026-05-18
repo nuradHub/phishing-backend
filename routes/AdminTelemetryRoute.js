@@ -114,4 +114,26 @@ router.post('/api/retrain', UserProtected, AdminProtected, async (req, res) => {
   }
 });
 
+router.delete('/api/admin/scan/:id', UserProtected, AdminProtected, async (req, res) => {
+    try {
+        await UrlSubmission.findByIdAndDelete(req.params.id);
+        return res.status(200).json({ success: true, message: "Telemetry entry purged from cluster." });
+    } catch (err) {
+        return res.status(500).json({ error: err.message });
+    }
+});
+
+router.delete('/api/admin/user/:id', UserProtected, AdminProtected, async (req, res) => {
+    try {
+        // Safety guard: Prevent the admin from accidentally deleting themselves
+        if (req.user.userId === req.params.id) {
+            return res.status(400).json({ error: "Operation rejected: Cannot delete active root session profile." });
+        }
+        await User.findByIdAndDelete(req.params.id);
+        return res.status(200).json({ success: true, message: "User identity node dropped cleanly." });
+    } catch (err) {
+        return res.status(500).json({ error: err.message });
+    }
+});
+
 export default router;
