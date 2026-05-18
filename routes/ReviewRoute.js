@@ -1,5 +1,7 @@
 import express from 'express';
-import { CommunityReview } from '../schema/Schemas.js';
+import { CommunityReview, GeneralReview } from '../schema/Schemas.js';
+import UserProtected from '../middleware/UserMIddleWare.js';
+import AdminProtected from '../middleware/AdminMIddleWare.js';
 
 const router = express.Router();
 
@@ -46,6 +48,25 @@ router.get('/api/reviews', async (req, res) => {
     } catch (err) {
         console.error("Fetch Reviews Feed Error:", err.message);
         res.status(500).json({ message: 'Internal Server Error' });
+    }
+});
+
+router.delete('/api/admin/review/private/:id', UserProtected, AdminProtected, async (req, res) => {
+    try {
+        await CommunityReview.findByIdAndDelete(req.params.id);
+        return res.status(200).json({ success: true, message: "Operator review dropped." });
+    } catch (err) {
+        return res.status(500).json({ error: err.message });
+    }
+});
+
+// 4. DELETE PUBLIC GUEST ASSESSMENT
+router.delete('/api/admin/review/public/:id', UserProtected, AdminProtected, async (req, res) => {
+    try {
+        await GeneralReview.findByIdAndDelete(req.params.id);
+        return res.status(200).json({ success: true, message: "Guest assessment dropped." });
+    } catch (err) {
+        return res.status(500).json({ error: err.message });
     }
 });
 
