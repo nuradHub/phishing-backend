@@ -4,18 +4,17 @@ import * as cheerio from 'cheerio';
 import { captureMissedPattern } from './retrain.js';
 import { NeuralModel, UrlSubmission, DetectionResult } from '../schema/Schemas.js';
 
-let cachedNet = null;
-
 const getAiBrain = async () => {
-    if (cachedNet) return cachedNet;
     const net = new brain.NeuralNetwork({ hiddenLayers: [12, 8, 4] });
     try {
-        const savedModel = await NeuralModel.findOne({}).lean();
+        
+        const savedModel = await NeuralModel.findOne({}).sort({ trained_at: -1 }).lean();
+
         if (savedModel && savedModel.model_json) {
             net.fromJSON(savedModel.model_json);
-            console.log("✅ AI Engine running on optimized Neural_Model dataset.");
+            console.log("✅ [AI CORE LAYER] Running on dynamic synchronized Neural_Model weights matrix directly from cloud.");
         } else {
-            console.log("⚠️ Neural_Model empty. Bootstrapping with baseline vectors...");
+            console.log("⚠️ Neural_Model empty inside cloud cluster. Bootstrapping with baseline vector array...");
             net.train([
                 { input: [0, 0, 0, 0, 0, 0, 0], output: [0] },
                 { input: [1, 1, 1, 1, 1, 1, 1], output: [1] },
@@ -25,14 +24,13 @@ const getAiBrain = async () => {
                 { input: [1, 0, 0, 1, 0, 0, 1], output: [0.95] },
                 { input: [0, 1, 1, 0, 1, 0, 0], output: [0.80] },
                 { input: [0, 0, 0, 0, 1, 0, 0], output: [1] }
-            ], { iterations: 5000 });
+            ], { iterations: 2000 });
         }
     } catch (e) {
         console.error("Core Engine boot crash, executing hardcoded safety array:", e);
         net.train([{ input: [0, 0, 0, 0, 0, 0, 0], output: [0] }, { input: [1, 1, 1, 1, 1, 1, 1], output: [1] }]);
     }
-    cachedNet = net;
-    return cachedNet;
+    return net;
 };
 
 const calculateFinalScore = (ml, heurScore, globalReports, contentRisk) => {
@@ -191,12 +189,11 @@ const Scanner = {
                     content_risk: cont.risk,
                     content_detail: cont.detail,
                     global_reports: globalReports,
-                    malicious_engines: maliciousEngines, 
+                    malicious_engines: maliciousEngines,
                     categories: uniqueCategories
                 }
             });
 
-            // Write matching tracking documents for DetectionResult table entries
             await DetectionResult.insertMany([
                 { submission_id: submission._id, layer: 'ML', score: Math.round(ml * 100), evidence: [`Vector: [${inputDNA.join(',')}]`] },
                 { submission_id: submission._id, layer: 'HEURISTIC', score: heur.score, evidence: heur.flags },
@@ -219,7 +216,8 @@ const Scanner = {
                 contentDetail: cont.detail,
                 globalReports: globalReports,
                 maliciousEngines: maliciousEngines.length,
-                categories: uniqueCategories
+                categories: uniqueCategories,
+                features: inputDNA
             }
         };
     }
