@@ -6,7 +6,7 @@ import { MissedPattern, NeuralModel } from '../schema/Schemas.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-const trainingSetPath = path.join(__dirname, '../data/training-set.json'); 
+const trainingSetPath = path.join(__dirname, '../data/training-set.json');
 
 export const captureMissedPattern = async (inputVector, url, vtFlags) => {
     try {
@@ -15,9 +15,9 @@ export const captureMissedPattern = async (inputVector, url, vtFlags) => {
 
         const exists = await MissedPattern.findOne({ features: inputVector });
         if (!exists) {
-            await MissedPattern.create({ 
+            await MissedPattern.create({
                 url: url,
-                features: inputVector, 
+                features: inputVector,
                 virustotal_flags: vtFlags
             });
             console.log("🚀 Pattern saved to MongoDB Missed_Pattern repository.");
@@ -30,7 +30,7 @@ export const captureMissedPattern = async (inputVector, url, vtFlags) => {
 // Pulls from training-set.json AND MissedPattern collection to update your model weights
 export const runAutoTrain = async () => {
     try {
-        // 1. Load your core baseline rules so your AI NEVER forgets foundational safety parameters
+        // 1. Load core baseline rules so your AI NEVER forgets foundational safety parameters
         let consolidatedDataset = [];
         if (fs.existsSync(trainingSetPath)) {
             const rawBaselineData = fs.readFileSync(trainingSetPath, 'utf8');
@@ -53,9 +53,8 @@ export const runAutoTrain = async () => {
         let freshInjectionsCount = 0;
         dynamicPatterns.forEach((pattern) => {
             if (pattern && pattern.features && Array.isArray(pattern.features) && pattern.features.length === 7) {
-                // If VirusTotal metrics flag it heavily, anchor target to 1. Else tag as a high risk threshold
                 const targetOutput = pattern.virustotal_flags > 5 ? [1] : [0.85];
-                
+
                 consolidatedDataset.push({
                     input: pattern.features,
                     output: targetOutput
@@ -68,27 +67,29 @@ export const runAutoTrain = async () => {
 
         // 4. Initialize your Hidden Layers matrix perceptron
         const net = new brain.NeuralNetwork({ hiddenLayers: [12, 8, 4] });
-        
+
         // 5. Fire your optimization backpropagation learning calculations over the combined data array
         net.train(consolidatedDataset, {
-            iterations: 4000,
-            errorThresh: 0.005,
+            iterations: 8000,
+            errorThresh: 0.001, 
+            learningRate: 0.6,
+            momentum: 0.2, 
             log: true,
-            logPeriod: 1000
+            logPeriod: 2000
         });
 
         // 6. Serialize weights matrix parameters directly into MongoDB
         const modelJSON = net.toJSON();
         await NeuralModel.findOneAndUpdate(
-            {}, 
-            { 
-                model_json: modelJSON, 
-                trained_at: new Date(), 
-                sample_count: consolidatedDataset.length 
-            }, 
-            { upsert: true, new: true }
+            {},
+            {
+                model_json: modelJSON,
+                trained_at: new Date(),
+                sample_count: consolidatedDataset.length
+            },
+            { upsert: true, returnDocument: 'after'}
         );
-        
+
         console.log("✅ Neural_Model brain mapping successfully updated in cloud.");
         return consolidatedDataset.length;
 
